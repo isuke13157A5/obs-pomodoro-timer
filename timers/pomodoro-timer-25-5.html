@@ -129,6 +129,7 @@
     <script type="text/javascript">
       // 変数の定義
       let isTimerRunning = false; // タイマーが動作中か（スタートボタンが押されたか）
+      let count = 0; // ポモドーロタイマーが何周目か
 
       // スタートボタンを押したら関数を実行
       document.getElementById("start-button").addEventListener("click", startTimer)
@@ -169,11 +170,11 @@
       }
 
       // 現在のセッション状態（作業中か休憩中か）を表示する関数
-      function calculateSessionText(isWork) {
+      function calculateSessionText(isWork, count) {
         if (isWork) {
-          return "WORK";
+          return `WORK #${count}`;
         } else {
-          return "BREAK";
+          return `BREAK #${count}`;
         }
       }
 
@@ -213,6 +214,7 @@
         isTimerRunning = true;
         const startButton = document.getElementById("start-button");
         startButton.style.display = "none";
+        count = 1;
 
         console.log("startTimer");
 
@@ -223,7 +225,7 @@
         // タイマーの初期表示
         initialTimer(params);
         console.log("remainingSeconds", remainingSeconds);
-        updateTimer(remainingSeconds, isWork);
+        updateTimer(remainingSeconds, isWork, count);
 
         const timer = setInterval(function () {
           // 毎秒タイマーの残り時間を1減らす
@@ -237,18 +239,19 @@
             } else {
               isWork = true;
               remainingSeconds = params.work * 60;
+              count++;
             }
           }
 
           console.log("remainingSeconds", remainingSeconds);
 
           // タイマーの表示を更新
-          updateTimer(remainingSeconds, isWork);
+          updateTimer(remainingSeconds, isWork, count);
         }, 1000);
       }
 
       // タイマーの表示を更新する関数
-      function updateTimer(remainingSeconds, isWork) {
+      function updateTimer(remainingSeconds, isWork, count) {
         const params = getParameters();
 
         // タイマーの残り時間の表示
@@ -257,7 +260,7 @@
 
         // 現在のステータス表示
         const sessionElement = document.getElementById("timer-label-description");
-        sessionElement.textContent = calculateSessionText(isWork);
+        sessionElement.textContent = calculateSessionText(isWork, count);
 
         // 進捗を示す円の表示
         const remainingPathElement = document.getElementById("timer-circle-outer")
