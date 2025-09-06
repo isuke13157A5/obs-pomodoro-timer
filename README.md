@@ -5,7 +5,7 @@ OBSのブラウザソースで利用できるポモドーロタイマーです�
 ## 内容
 
 ### 25分作業＋5分休憩のポモドーロタイマー
-URL：
+URL：https://isuke13157a5.github.io/obs-pomodoro-timer/timers/pomodoro-timer-25-5.html
 
 「START」ボタンを押すと、作業25分＋休憩5分のポモドーロタイマーが開始されます。
 
