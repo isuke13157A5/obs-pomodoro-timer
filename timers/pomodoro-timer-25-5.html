@@ -1,0 +1,296 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>pomodoro 25-5</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@600&family=Lalezar&display=swap" rel="stylesheet">
+    <style>
+      /* 全体に共通するスタイルの定義 */
+      :root {
+        --color-base: #FCF8E8;
+        --color-primary: #94B49F;
+        --color-second: #ECB390;
+        --color-accent: #DF7861;
+        --radius-interval: 40;
+        --radius-progress: 45;
+      }
+
+      html {
+        font-size: 32vmin;
+      }
+
+      body {
+        align-items: center;
+        background-color: black;
+        color: var(--color-base);
+        display: flex;
+        font-family: 'Inconsolata', monospace;
+        justify-content: center;
+        margin: 0px auto;
+        overflow: hidden;
+        text-align: center;
+      }
+
+      #timer-label-value {
+        font-size: 0.8rem;
+        margin-top: 0.1rem;
+        letter-spacing: -1vw;
+        line-height: 0.7;
+      }
+
+      #timer-label-description {
+        color: var(--color-second);
+        font-family: 'Lalezar', monospace;
+        font-size: 0.25rem;
+      }
+
+      .timer {
+        height: 3rem;
+        position: relative;
+        width: 3rem;
+      }
+
+      .timer-group {
+        fill: none;
+        stroke: none;
+      }
+
+      .timer-circle-red {
+        stroke: var(--color-accent);
+        display: none;
+      }
+
+      .timer-circle-green {
+        stroke: var(--color-primary);
+        display: none;
+      }
+
+      .timer-label {
+        align-items: center;
+        display: flex;
+        height: 3rem;
+        justify-content: center;
+        position: absolute;
+        top: 0.2rem;
+        width: 3rem;
+      }
+      .timer-label > div {
+        position: relative;
+      }
+
+      .timer-circle-background {
+        fill: rgba(0, 0, 0, 0.7);
+      }
+
+      .timer-circle-outer {
+        stroke: var(--color-base);
+        stroke-linecap: round;
+        stroke-width: 4;
+        transition: 1s linear all;
+      }
+
+      .timer-svg {
+        transform: rotate(-90deg);
+        transform-origin: center;
+      }
+
+      .start-button {
+        font-size: 0.2rem;
+        background-color: var(--color-primary);
+        color: black;
+        border: none;
+        border-radius: 0.07rem;
+        padding: 0.05rem 0.1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="timer">
+      <svg class="timer-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <g class="timer-group">
+          <circle cx="50" cy="50" r="47" class="timer-circle-background"/>
+          <circle cx="50" cy="50" r="45" class="timer-circle-outer" id="timer-circle-outer" stroke-dasharray="0"/>
+          <circle cx="50" cy="50" r="40" class="timer-circle-red"/>
+          <circle cx="50" cy="50" r="40" class="timer-circle-green" stroke-dasharray="0" />
+        </g>
+      </svg>
+      <div class="timer-label">
+        <div>
+          <div id="timer-interval-value" style="font-family: 'Lalezar', monospace; font-size: 0.28rem; color: var(--color-second); position: absolute; top: -0.4rem; left: 50%; transform: translateX(-50%); width: 3rem; text-align: center; letter-spacing: 0.05em;"></div>
+          <!-- スタートボタン -->
+          <button id="start-button" class="start-button">START</button>
+          <div id="timer-label-value"></div>
+          <div id="timer-label-description"></div>
+        </div>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      // 変数の定義
+      let isTimerRunning = false; // タイマーが動作中か（スタートボタンが押されたか）
+
+      // スタートボタンを押したら関数を実行
+      document.getElementById("start-button").addEventListener("click", startTimer)
+      
+      // 数字を指定した桁数で0埋めする関数
+      function zeroPadding(number, length) {
+        return (Array(length).join("0") + number).slice(-length);
+      }
+
+      // SVGの円形プログレスバーの表示を計算する関数（秒単位で精密に）
+      function calculateRemainingPathDashArray(params, remainingSeconds, isWork) {
+        const intervalSeconds = (params.work + params.break) * 60;
+
+        // 現在の進捗時間
+        let progressSeconds;
+        if (isWork) {
+          progressSeconds = intervalSeconds - (params.break * 60 + remainingSeconds);
+        } else {
+          progressSeconds = intervalSeconds - remainingSeconds;
+        }
+
+        // 現在の進捗割合
+        const progressRatio = progressSeconds / intervalSeconds
+
+        // 進捗円の半径取得
+        const rootStyles = getComputedStyle(document.documentElement);
+        const progressRadius = rootStyles.getPropertyValue("--radius-progress").trim();
+        // console.log("progressRadius", progressRadius)
+
+        // 進捗円の円周
+        const circumference = 2 * progressRadius * Math.PI;
+
+        // 進捗バーの長さを返す
+        const progressLength = circumference * progressRatio;
+        console.log("progressLength", progressLength);
+        return `${progressLength} ${circumference}`;
+        // return progressLength;
+      }
+
+      // 現在のセッション状態（作業中か休憩中か）を表示する関数
+      function calculateSessionText(isWork) {
+        if (isWork) {
+          return "WORK";
+        } else {
+          return "BREAK";
+        }
+      }
+
+      // CSSクラス名を決定する関数（作業中か休憩中か）
+      function calculateTimerClassName(parameters) {
+        const date = new Date();
+        const minutes = date.getMinutes();
+        const interval = parameters.work + parameters.break;
+        const minutesInInterval = minutes % interval;
+        return minutesInInterval < parameters.work ? "work" : "break";
+      }
+
+      // 残り時間を "MM:SS" 形式で計算する関数（安全処理付き）
+      function calculateTimerText(remainingSeconds) {
+        const displayMinutes = Math.floor(remainingSeconds / 60); // 分表示
+        const displaySeconds = remainingSeconds % 60; // 秒表示
+
+        // 表示テキスト「mm:ss」（0埋めで2ケタにする）
+        return [
+          zeroPadding(displayMinutes, 2),
+          zeroPadding(displaySeconds, 2),
+        ].join(":");
+      }
+
+      // ポモドーロタイマーの設定値を取得する関数（25分作業・5分休憩）
+      function getParameters() {
+        return {
+          break: 5,
+          work: 25,
+        };
+      }
+
+      // スタートボタンを押した時の処理
+      function startTimer() {
+        // 最初の1回のクリックのみで動作
+        if (isTimerRunning) return;
+        isTimerRunning = true;
+        const startButton = document.getElementById("start-button");
+        startButton.style.display = "none";
+
+        console.log("startTimer");
+
+        const params = getParameters();
+        let remainingSeconds = params.work * 60;
+        let isWork = true;
+
+        // タイマーの初期表示
+        initialTimer(params);
+        console.log("remainingSeconds", remainingSeconds);
+        updateTimer(remainingSeconds, isWork);
+
+        const timer = setInterval(function () {
+          // 毎秒タイマーの残り時間を1減らす
+          remainingSeconds--;
+
+          // 残り時間が0になったらタイマー切り替え
+          if (remainingSeconds <= 0) {
+            if (isWork) {
+              isWork = false;
+              remainingSeconds = params.break * 60;
+            } else {
+              isWork = true;
+              remainingSeconds = params.work * 60;
+            }
+          }
+
+          console.log("remainingSeconds", remainingSeconds);
+
+          // タイマーの表示を更新
+          updateTimer(remainingSeconds, isWork);
+        }, 1000);
+      }
+
+      // タイマーの表示を更新する関数
+      function updateTimer(remainingSeconds, isWork) {
+        const params = getParameters();
+
+        // タイマーの残り時間の表示
+        const timerElement = document.getElementById("timer-label-value");
+        timerElement.textContent = calculateTimerText(remainingSeconds);
+
+        // 現在のステータス表示
+        const sessionElement = document.getElementById("timer-label-description");
+        sessionElement.textContent = calculateSessionText(isWork);
+
+        // 進捗を示す円の表示
+        const remainingPathElement = document.getElementById("timer-circle-outer")
+        remainingPathElement.setAttribute("stroke-dasharray", calculateRemainingPathDashArray(params, remainingSeconds, isWork));
+      }
+
+      // タイマーの固定表示
+      function initialTimer(params) {
+        // 設定時間表示
+        const intervalValueElement = document.getElementById("timer-interval-value");
+        intervalValueElement.textContent = `${params.work}-${params.break}`;
+
+        // インターバル円の半径取得
+        const rootStyles = getComputedStyle(document.documentElement);
+        const intervalRadius = rootStyles.getPropertyValue("--radius-interval").trim();
+
+        // 赤の円の表示
+        const redCircle = document.querySelector(".timer-circle-red");
+        redCircle.style.r = intervalRadius;
+        redCircle.style.display = "block";
+
+        // 緑の円の表示（全体に占めるWORKの時間割合）
+        // 長さの算出
+        const circumference = 2 * intervalRadius * Math.PI;
+        const workRatio = params.work / (params.work + params.break);
+        greenLength = circumference * workRatio;
+        // 表示
+        const greenCircle = document.querySelector('.timer-circle-green');
+        greenCircle.style.r = intervalRadius;
+        greenCircle.style.setProperty("stroke-dasharray", `${greenLength} ${circumference}`);
+        greenCircle.style.display = "block";
+      }
+
+    </script>
+  </body>
+</html> 
